@@ -10,6 +10,8 @@ const ApiErr = require("./utils/apiError");
 const ErrorMiddleware = require("./middlewares/errMiddleware");
 const DBconnection = require("./config/database");
 
+const { webhockCheckout } = require("./controllers/orderController");
+
 dotenv.config({ path: "config.env" });
 
 //////////////    Connect with DB  ///////////////////
@@ -24,6 +26,13 @@ app.options("*", cors());
 
 // compress all response
 app.use(compression());
+
+//checkOut webhock
+app.post(
+  "/wehock-checkout",
+  express.raw({ type: "application/json" }),
+  webhockCheckout
+);
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "/uploads")));
