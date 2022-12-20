@@ -8,6 +8,7 @@ const Factory = require("./handlerFactory");
 const Cart = require("../models/cartModel");
 const Order = require("../models/orderModel");
 const Product = require("../models/productModel");
+const User = require("../models/userModel");
 
 //const paypalService = require("./paypalController");
 
@@ -210,6 +211,38 @@ module.exports = {
       session,
     });
   }),
+  createCardOrder: async (session) => {
+    const cartId = session.client_reference_id;
+    const shippingAddress = session.metadata;
+    const orderPrice = session.amount_total / 100;
+    const userEmail = session.customer_email;
+
+    const cart = await Cart.findById(cartId);
+    const user = await User.findOne({ email: userEmail });
+
+    // 3) Create order with default paymentMethodType card
+    const order = await Order.create({
+      user: user._id,
+      cartItems: cart.cartItems,
+      shippingAddress,
+      totalPrice: orderPrice,
+      isPaid: true,
+      paidAt: Date.now(),
+      paymentMethodType: "card",
+    });
+    // 4) After creating order, decrement product quantity, increment product sold
+    if (order) {
+      const bulkOption = cart.cartItems.map((item) => ({
+        updateOne: {
+          filter: { _id: item.product },
+          update: { $inc: { quantity: -item.quantaty, sold: +item.quantaty } },
+        },
+      }));
+      await Product.bulkWrite(bulkOption);
+      // 5) Clear cart depend on cartId
+      await Cart.findByIdAndDelete(cartId);
+    }
+  },
 
   webhockCheckout: asyncHandler(async (req, res, next) => {
     const sig = req.headers["stripe-signature"];
@@ -226,7 +259,8 @@ module.exports = {
       return res.status(400).send(`Webhook Error: ${err.message}`);
     }
     if (event.type === "checkout.session.completed") {
-      console.log("create order here");
+      createCardOrder(event.data.object);
     }
+    res.status(200).json({ payment: "success" });
   }),
 };
