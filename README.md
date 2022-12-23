@@ -18,6 +18,7 @@ Login & Register Users - JWT Authentication
 Use modern JavaScript features (ES6, ES7)  
 Cash on delivery (no online payment required)  
 
+#Security
 more security for this app like  
 prevent http parameter pollution  
 Data sanitization  
